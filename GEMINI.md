@@ -1,5 +1,5 @@
 # Goal
-Provide a minimal, reliable tool to find existing older firmware versions for HP OfficeJet Pro 8600 series printers and install them on the device.
+Find older firmware versions for HP OfficeJet Pro 8600 series printers and a HOWTO.md to install them on the device.
 
 # Structure
 - `CONCEPT.md`: Defines the goal, core use cases (firmware lookup & installation), and minimal architecture.
@@ -17,10 +17,3 @@ Provide a minimal, reliable tool to find existing older firmware versions for HP
 # `DESIGN.md` Handling
 - Specifies communication protocols (e.g. PJL over TCP/9100 or USB) for flashing.
 - Details mechanisms to locate and download/load compatible legacy firmware files.
-
-# Command-Line Interface (CLI)
-- Simple CLI interface for searching available legacy firmware and flashing the printer.
-- Options available in short and long forms.
-
-# Testing & Workflow
-- Run local tests to verify firmware binary verification and printer communication modules before committing.

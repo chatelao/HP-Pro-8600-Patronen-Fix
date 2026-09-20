@@ -1,5 +1,5 @@
 # Goal
-Build an AI web chatbot based on a private vLLM engine.
+Provide a toolkit to downgrade the Firmware of HP Pro 8600 printers to use min HP cartridges.
 
 # Structure
 - `CONCEPT.md`: The overall structure of the product, including Business & Use Cases as well as the High-Level Architecture.

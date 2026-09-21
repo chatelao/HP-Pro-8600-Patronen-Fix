@@ -5,11 +5,13 @@ on:
     paths:
       - 'img/**'
       - 'scripts/decode.py'
+      - 'scripts/decompile.py'
       - '.github/workflows/unpack-firmware.yml'
   pull_request:
     paths:
       - 'img/**'
       - 'scripts/decode.py'
+      - 'scripts/decompile.py'
       - '.github/workflows/unpack-firmware.yml'
   workflow_dispatch:
     inputs:
@@ -41,7 +43,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pycryptodome xmltodict
+          pip install pycryptodome xmltodict capstone
 
       - name: Run Firmware Decryption & Full Filesystem Extraction
         env:
@@ -99,11 +101,63 @@ jobs:
             exit 1
           fi
 
-      - name: Upload Unpacked Filesystem ZIP Asset
+      - name: Run Firmware Decompilation
+        run: |
+          python3 scripts/decompile.py decoded_output
+
+      - name: Verify Decompiled Source Code Asset
+        run: |
+          if [ -d "decompiled_output" ] && [ "$(ls -A decompiled_output)" ]; then
+            echo "Successfully generated decompiled assembly source code:"
+            ls -lh decompiled_output/
+
+            if [ -f "decompiled_source.zip" ]; then
+              echo "Decompiled source zip asset produced successfully:"
+              ls -lh decompiled_source.zip
+            else
+              echo "Error: decompiled_source.zip asset was not generated!"
+              exit 1
+            fi
+
+            python3 -c "import textwrap; exec(textwrap.dedent('''
+              import os, sys, zipfile
+              from pathlib import Path
+
+              output_dir = Path('decompiled_output')
+              files = [f for f in output_dir.rglob('*') if f.is_file()]
+
+              if not files:
+                  print('Error: No files found in decompiled_output')
+                  sys.exit(1)
+
+              print(f'Total decompiled source files found: {len(files)}')
+
+              zip_path = Path('decompiled_source.zip')
+              if not zip_path.exists() or zip_path.stat().st_size == 0:
+                  print('Error: Decompiled source zip asset is missing or empty!')
+                  sys.exit(1)
+
+              with zipfile.ZipFile(zip_path, 'r') as zf:
+                  namelist = zf.namelist()
+                  print(f'Decompiled zip archive contains {len(namelist)} entries.')
+                  if not namelist:
+                      print('Error: Decompiled zip archive is empty!')
+                      sys.exit(1)
+
+              print('Verification complete: Decompiled source code asset is valid.')
+            '''))"
+          else
+            echo "Error: No decompiled source artifacts were produced."
+            exit 1
+          fi
+
+      - name: Upload Unpacked Filesystem & Decompiled Source ZIP Assets
         uses: actions/upload-artifact@v4
         with:
-          name: unpacked-filesystem-zip
+          name: unpacked-firmware-and-decompiled-source
           path: |
             unpacked_filesystem.zip
             decoded_output/
+            decompiled_source.zip
+            decompiled_output/
           if-no-files-found: error

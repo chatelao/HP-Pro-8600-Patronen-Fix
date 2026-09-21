@@ -1,24 +1,26 @@
-name: Unpack RFU Firmware Packages
+name: Unpack Firmware Packages
 
 on:
   push:
     paths:
-      - 'img/*.rfu'
-      - 'img/**/*.rfu'
+      - 'img/**'
       - 'scripts/decode.py'
       - '.github/workflows/unpack-firmware.yml'
   pull_request:
     paths:
-      - 'img/*.rfu'
-      - 'img/**/*.rfu'
+      - 'img/**'
       - 'scripts/decode.py'
       - '.github/workflows/unpack-firmware.yml'
   workflow_dispatch:
     inputs:
       target_path:
-        description: 'Path to firmware file or directory containing .rfu files'
+        description: 'Path to firmware file, backup, or directory'
         required: false
         default: 'img'
+      backup_password:
+        description: 'Password for .enc bksettings backup decryption (optional)'
+        required: false
+        default: ''
 
 jobs:
   unpack:
@@ -37,19 +39,56 @@ jobs:
           python -m pip install --upgrade pip
           pip install pycryptodome xmltodict
 
-      - name: Run Firmware Unpacking Logic
+      - name: Run Firmware Decryption & Unpacking Logic
         run: |
           TARGET_PATH="${{ github.event.inputs.target_path }}"
+          BACKUP_PASSWORD="${{ github.event.inputs.backup_password }}"
           if [ -z "$TARGET_PATH" ]; then
             TARGET_PATH="img"
           fi
-          python3 scripts/decode.py "$TARGET_PATH"
+          python3 scripts/decode.py "$TARGET_PATH" "$BACKUP_PASSWORD"
 
-      - name: Check Extracted Artifacts
+      - name: Check Extracted Artifacts & Verify Readability
         run: |
           if [ -d "decoded_output" ] && [ "$(ls -A decoded_output)" ]; then
             echo "Successfully unpacked firmware artifacts:"
             ls -lh decoded_output/
+
+            echo "Evaluating readability and structure of unpacked artifacts..."
+            python3 -c "import os, sys
+from pathlib import Path
+
+output_dir = Path('decoded_output')
+files = [f for f in output_dir.glob('*') if f.is_file()]
+
+if not files:
+    print('Error: No files found in decoded_output')
+    sys.exit(1)
+
+for file in files:
+    data = file.read_bytes()
+    print(f'=== File: {file.name} ({len(data)} bytes) ===')
+    if len(data) == 0:
+        print(f'Error: Extracted file {file.name} is 0 bytes!')
+        sys.exit(1)
+
+    has_xml = b'<?xml' in data or b'</manifest>' in data
+    has_srec = b'S0' in data or b'S3' in data
+    has_pcl = b'\x1bE' in data or b'@PJL' in data
+
+    printable = sum(1 for b in data if 32 <= b <= 126 or b in (9, 10, 13))
+    ratio = (printable / len(data)) * 100
+
+    print(f'  Printable ASCII ratio: {ratio:.2f}%')
+    print(f'  Contains XML: {has_xml}')
+    print(f'  Contains Motorola S-Records: {has_srec}')
+    print(f'  Contains residual PCL/PJL markers: {has_pcl}')
+
+    if has_pcl:
+        print('  [Warning] Artifact contains residual PCL/PJL escape sequences.')
+    if has_srec:
+        print('  [Note] Artifact is Motorola S-Record encapsulated.')
+"
           else
             echo "Error: No decoded artifacts were produced."
             exit 1

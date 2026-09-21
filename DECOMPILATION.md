@@ -83,13 +83,26 @@ Die Verschlüsselung nutzt AES-128-CBC über raw `zlib`-komprimierte Daten. Der 
    j = 0x54
    secret = bytes([b ^ (j + i) for i, b in enumerate(ARRAY[1:-1])]).decode() # '@* WebFWUpdate'
    ```
-2. **Modell-Prefix (`fw_model`):** Der Wert aus `updated_revision` wird in Kleinbuchstaben umgewandelt und auf die ersten 6 Zeichen gekürzt (z. B. `MANHHIPP1N005...` -> `manhhi`, `PALMIN...` -> `palmin`).
+2. **Modell-Prefix (`fw_model`):** Der Wert aus `updated_revision` wird in Kleinbuchstaben umgewandelt und auf die ersten 6 Zeichen gekürzt (z. B. `ORVILL...` -> `orvill`, `MANHHIPP1N005...` -> `manhhi`, `PALMIN...` -> `palmin`).
 3. **Digest:** Der Wert aus `<blob_digest_uncompressed>` wird Base64-dekodiert.
 4. **Schlüsselableitung (Key Derivation):**
    $$\text{KeyMaterial} = \text{SHA256}(\text{secret} + \text{fw\_model} + \text{blob\_digest\_uncompressed})$$
    * **AES-Key:** Die ersten 16 Bytes von `KeyMaterial`.
    * **AES-IV:** 16 Null-Bytes (`\x00` * 16).
 5. **Dekomprimierung:** Der entschlüsselte Ciphertext wird mittels raw `zlib` (`wbits=-15`) dekodiert.
+
+### 2.4 Modell-Codenamen, `fw_model` & Firmware-Präfixe
+
+Für die Schlüsselableitung (`fw_model`) sowie die Zuordnung der Firmware-Revisionen zu den Druckermodellen dienen interne Codenamen und Modell-Präfixe aus der `fwupd`-Konfiguration (`fwupdConfig::fw_model`):
+
+| Series / Model | Internal Codename | `fwupdConfig::fw_model` | Firmware Version Prefix | Platform Tier / Notes |
+|---|---|---|---|---|
+| **HP OfficeJet Pro 8600** (N911a/g/n) | Orville | `ORVILL` / `OJ8600` | CLP1CN, CKP1CN | Base AIO platform |
+| **HP OfficeJet Pro 8100** (N811a) | Wilbur | `WILBUR` / `OJ8100` | TRP1CN | SFP counterpart to the 8600 |
+| **HP OfficeJet Pro 8610 / 8620 / 8630** | Malibu (Orville Refresh) | `MALIBU` | FDP1CN | Mid-generation refresh |
+| **HP OfficeJet Pro 8730 / 8740** | Manhattan High | `MANHHI` | EDP1CN | Successor high-tier AIO |
+| **HP OfficeJet Pro 8710 / 8720** | Manhattan Low / Mid | `MANHLO` / `MANHMID` | WBP1CN | Successor low/mid-tier AIO |
+| **HP ENVY 4520 / 5540** | Palmetto / Palm | `PALMIN` | KP1CN | Consumer entry / integrated |
 
 ---
 

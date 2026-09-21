@@ -17,7 +17,7 @@ The unpacking architecture supports three primary file structures as described i
 * **Key Derivation Strategy:**
   $$\text{KeyMaterial} = \text{SHA256}(\text{Secret} + \text{fw\_model} + \text{blob\_digest\_uncompressed})$$
   * `Secret`: Obfuscated string `@* WebFWUpdate`.
-  * `fw_model`: First 6 lowercase characters of the `<updated_revision>` tag in the XML manifest (e.g., `manhhi`).
+  * `fw_model`: First 6 lowercase characters of the `<updated_revision>` tag in the XML manifest (e.g., `orvill`, `manhhi`).
   * `blob_digest_uncompressed`: Base64-decoded byte value from the XML manifest's `<blob_digest_uncompressed>` element.
 * **Decryption & Decompression:**
   * AES Key: First 16 bytes of `KeyMaterial`.

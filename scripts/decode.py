@@ -17,6 +17,7 @@ import os
 import sys
 import re
 import io
+import glob
 import base64
 import struct
 import hashlib
@@ -337,7 +338,11 @@ def decode_pjl_rfu(file_path: Path, output_dir: Path) -> bool:
     if eoj_idx != -1 and eoj_idx > payload_start:
         payload_end = eoj_idx
     else:
-        payload_end = len(data)
+        eoj_idx2 = data.rfind(b'\x1b%-12345X')
+        if eoj_idx2 != -1 and eoj_idx2 > payload_start:
+            payload_end = eoj_idx2
+        else:
+            payload_end = len(data)
 
     payload = data[payload_start:payload_end]
 
@@ -401,24 +406,72 @@ def process_file(file_path: Path, output_dir: Path, password: str = ""):
     print(f"[-] Unknown or unhandled firmware format: {file_path}")
 
 
+def resolve_target_paths(target_str: str) -> list[Path]:
+    """
+    Resolve input target string into a list of Path objects.
+    Supports relative paths, paths with leading slashes (/img/*.rfu -> img/*.rfu),
+    directories, individual files, and glob patterns (*.rfu, **/*.rfu).
+    """
+    raw_path = Path(target_str)
+
+    # 1. Direct path check (exists as exact file or directory)
+    if raw_path.exists():
+        if raw_path.is_dir():
+            files = [p for p in raw_path.iterdir() if p.is_file() and not p.name.endswith('.md')]
+            return sorted(files)
+        return [raw_path]
+
+    # 2. Leading slash fallback (e.g., '/img/*.rfu' or '/img' -> 'img/*.rfu' or 'img')
+    rel_str = target_str.lstrip('/') if target_str.startswith('/') else target_str
+    rel_path = Path(rel_str)
+    if rel_path.exists():
+        if rel_path.is_dir():
+            files = [p for p in rel_path.iterdir() if p.is_file() and not p.name.endswith('.md')]
+            return sorted(files)
+        return [rel_path]
+
+    # 3. Glob matching (using original target_str or rel_str)
+    glob_matches = glob.glob(target_str, recursive=True)
+    if not glob_matches and target_str.startswith('/'):
+        glob_matches = glob.glob(rel_str, recursive=True)
+
+    matched_files = []
+    for match in sorted(glob_matches):
+        p = Path(match)
+        if p.is_file() and not p.name.endswith('.md'):
+            matched_files.append(p)
+        elif p.is_dir():
+            files = [f for f in p.iterdir() if f.is_file() and not f.name.endswith('.md')]
+            matched_files.extend(sorted(files))
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_files = []
+    for f in matched_files:
+        f_resolved = f.resolve()
+        if f_resolved not in seen:
+            seen.add(f_resolved)
+            unique_files.append(f)
+
+    return unique_files
+
+
 def main():
     args = [arg for arg in sys.argv[1:] if not arg.startswith('--')]
 
-    target_path = Path(args[0]) if len(args) > 0 else Path("img")
+    target_str = args[0] if len(args) > 0 else "img"
     password = args[1] if len(args) > 1 else ""
 
-    if not target_path.exists():
-        print(f"[!] Target path does not exist: {target_path}")
+    target_files = resolve_target_paths(target_str)
+
+    if not target_files:
+        print(f"[!] Target path or pattern matched no files: {target_str}")
         sys.exit(1)
 
     output_dir = Path("decoded_output")
 
-    if target_path.is_dir():
-        files = [p for p in target_path.iterdir() if p.is_file() and not p.name.endswith('.md')]
-        for file in files:
-            process_file(file, output_dir, password)
-    else:
-        process_file(target_path, output_dir, password)
+    for file_p in target_files:
+        process_file(file_p, output_dir, password)
 
     zip_filepath = Path("unpacked_filesystem.zip")
     create_zip_asset(output_dir, zip_filepath)

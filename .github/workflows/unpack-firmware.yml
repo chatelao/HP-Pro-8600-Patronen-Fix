@@ -39,7 +39,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pycryptodome xmltodict
 
-      - name: Run Firmware Decryption & Unpacking Logic
+      - name: Run Firmware Decryption & Full Filesystem Extraction
         run: |
           TARGET_PATH="${{ github.event.inputs.target_path }}"
           BACKUP_PASSWORD="${{ github.event.inputs.backup_password }}"
@@ -48,54 +48,57 @@ jobs:
           fi
           python3 scripts/decode.py "$TARGET_PATH" "$BACKUP_PASSWORD"
 
-      - name: Check Extracted Artifacts & Verify Readability
+      - name: Verify Extracted Filesystem & ZIP Asset
         run: |
           if [ -d "decoded_output" ] && [ "$(ls -A decoded_output)" ]; then
-            echo "Successfully unpacked firmware artifacts:"
+            echo "Successfully unpacked firmware artifacts and extracted filesystem:"
             ls -lh decoded_output/
 
-            echo "Evaluating readability and structure of unpacked artifacts..."
-            python3 -c "import os, sys
+            if [ -f "unpacked_filesystem.zip" ]; then
+              echo "Unencrypted zip asset produced successfully:"
+              ls -lh unpacked_filesystem.zip
+            else
+              echo "Error: unpacked_filesystem.zip asset was not generated!"
+              exit 1
+            fi
+
+            echo "Evaluating readability and structure of unpacked artifacts and zip asset..."
+            python3 -c "import os, sys, zipfile
 from pathlib import Path
 
 output_dir = Path('decoded_output')
-files = [f for f in output_dir.glob('*') if f.is_file()]
+files = [f for f in output_dir.rglob('*') if f.is_file()]
 
 if not files:
     print('Error: No files found in decoded_output')
     sys.exit(1)
 
-for file in files:
-    data = file.read_bytes()
-    print(f'=== File: {file.name} ({len(data)} bytes) ===')
-    if len(data) == 0:
-        print(f'Error: Extracted file {file.name} is 0 bytes!')
-        sys.exit(1)
+print(f'Total unpacked filesystem files found: {len(files)}')
 
-    has_xml = b'<?xml' in data or b'</manifest>' in data
-    has_srec = b'S0' in data or b'S3' in data
-    has_pcl = b'\x1bE' in data or b'@PJL' in data
+zip_path = Path('unpacked_filesystem.zip')
+if not zip_path.exists() or zip_path.stat().st_size == 0:
+    print('Error: Zip asset is missing or empty!')
+    sys.exit(1)
 
-    printable = sum(1 for b in data if 32 <= b <= 126 or b in (9, 10, 13))
-    ratio = (printable / len(data)) * 100
+with zipfile.ZipFile(zip_path, 'r') as zf:
+    namelist = zf.namelist()
+    print(f'Zip archive contains {len(namelist)} entries.')
+    for member in zf.infolist():
+        if member.flag_bits & 0x1:
+            print(f'Error: Zip entry {member.filename} is encrypted!')
+            sys.exit(1)
 
-    print(f'  Printable ASCII ratio: {ratio:.2f}%')
-    print(f'  Contains XML: {has_xml}')
-    print(f'  Contains Motorola S-Records: {has_srec}')
-    print(f'  Contains residual PCL/PJL markers: {has_pcl}')
-
-    if has_pcl:
-        print('  [Warning] Artifact contains residual PCL/PJL escape sequences.')
-    if has_srec:
-        print('  [Note] Artifact is Motorola S-Record encapsulated.')
+print('Verification complete: Unencrypted zip asset and extracted filesystem are valid.')
 "
           else
             echo "Error: No decoded artifacts were produced."
             exit 1
           fi
 
-      - name: Upload Unpacked Artifacts
+      - name: Upload Unpacked Filesystem ZIP Asset
         uses: actions/upload-artifact@v4
         with:
-          name: unpacked-firmware-artifacts
-          path: decoded_output/
+          name: unpacked-filesystem-zip
+          path: |
+            unpacked_filesystem.zip
+            decoded_output/

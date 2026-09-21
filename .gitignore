@@ -1,5 +1,7 @@
 decoded_output/
 unpacked_filesystem.zip
+decompiled_output/
+decompiled_source.zip
 __pycache__/
 *.pyc
 .pytest_cache/

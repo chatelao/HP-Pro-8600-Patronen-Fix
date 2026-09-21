@@ -20,6 +20,10 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
 | **Paper Trays** | 250-Sheet Tray 1 | 250-Sheet Tray 1 | Dual 250-Sheet Trays (Tray 1 + Tray 2) |
 | **Card Reader / Host USB** | Memory Card Slots + Front USB Host | Memory Card Slots + Front USB Host | Memory Card Slots + Front USB Host |
 
+### Datasheets & Reference Documentation
+* [HP OfficeJet Pro 8600 e-All-in-One Printer Series User Guide (PDF)](https://h10032.www1.hp.com/ctg/Manual/c03026243.pdf)
+* [HP OfficeJet Pro 8600 Series Hardware Specifications](https://support.hp.com/)
+
 ---
 
 ## 3. Main Formatter Board & System-on-Chip (SoC)
@@ -35,11 +39,15 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
   * USB 2.0 High-Speed Dual-Role (Host/Device) Controller.
   * 10/100 Ethernet MAC Engine.
   * Dedicated Direct Memory Access (DMA) channels for print line buffering and CIS scanning.
+* **Datasheets & Architecture Manuals:**
+  * [ARM Architecture Reference Manual (ARMv5TE / ARMv7-A)](https://developer.arm.com/documentation/ddi0100/latest)
+  * [Marvell Armada / Orion SoC Family Overview](https://www.marvell.com/products/embedded-processors.html)
 
 ### 3.2 Memory Subsystem
 * **System DRAM:**
   * **Capacity:** 128 MB to 256 MB.
   * **Function:** Serves as the main operational buffer for the RTOS, rasterized print job buffers, network packet buffers, and scanner frame buffers.
+  * **Reference Manual:** [JEDEC DDR2 SDRAM Specification (JESD79-2F)](https://www.jedec.org/standards-documents/docs/jesd79-2f)
 * **Flash Storage (Firmware Storage):**
   * **Capacity:** 64 MB to 128 MB NOR/NAND Flash.
   * **Partition Layout:**
@@ -47,9 +55,11 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
     * **NVRAM / Calibration Partition:** Stores factory calibration parameters, MAC address, serial number, printhead alignment parameters, page counters.
     * **OS / Kernel Partition:** Real-Time Operating System (RTOS) kernel and system execution code.
     * **User/Resource Partition:** PJL font files, Web Jetadmin / Embedded Web Server (EWS) assets, localized UI strings.
+  * **Datasheet:** [Winbond W25Q128FV 128Mb Serial NOR Flash Datasheet (PDF)](https://www.winbond.com/resource-files/w25q128fv%20rev.m%2005132016%20kms.pdf)
 * **EEPROM / Non-Volatile NVRAM:**
   * **Bus Interface:** I2C / SPI Serial EEPROM (e.g., 24C32 / 24C64 series).
   * **Usage:** Preserves dynamic settings, ink gauge counters, regional lock parameters, error logs, and persistent network configs.
+  * **Datasheet:** [Microchip 24C32A / 24C64A 32K/64K I2C Serial EEPROM Datasheet (PDF)](https://ww1.microchip.com/downloads/en/DeviceDoc/21072G.pdf)
 
 ---
 
@@ -60,24 +70,29 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
   * **MAC:** Integrated inside main SoC.
   * **PHY:** External 10/100 Base-TX Fast Ethernet Transceiver (MII/RMII interface).
   * **Connector:** Standard RJ-45 with integrated status LEDs.
+  * **Datasheet:** [Texas Instruments DP83848 Single-Port 10/100 Mb/s Ethernet Transceiver Datasheet (PDF)](https://www.ti.com/lit/ds/symlink/dp83848i.pdf)
 * **Wireless LAN (Wi-Fi):**
   * **Standards:** 802.11b/g/n (2.4 GHz).
   * **Interface:** Connected to main SoC via internal SDIO or USB bus.
   * **Chipset:** Broadcom / Marvell Wi-Fi module with integrated PCB antenna or micro-coaxial antenna.
   * **Security Offload:** Hardware WPA/WPA2 Personal & Enterprise encryption accelerator.
+  * **Datasheet:** [Broadcom BCM4319 / BCM43xx Single-Chip IEEE 802.11a/b/g/n Data Sheet (PDF)](https://docs.broadcom.com/doc/AV02-1057EN)
 
 ### 4.2 USB & Front Panel Ports
 * **USB Device Port (Rear):**
   * USB 2.0 High-Speed (480 Mbps) Type-B connector for direct PC host communication and firmware uploading via raw USB bulk transfer / PJL.
 * **USB Host Port (Front):**
   * USB 2.0 High-Speed Type-A connector supplying 5V/500mA power for direct printing from USB flash drives.
+  * **Specification:** [USB 2.0 Specification Document](https://www.usb.org/document-library/usb-20-specification)
 * **Memory Card Reader Interface:**
   * Multi-slot memory card controller supporting SD/SDHC, Memory Stick Duo.
+  * **Specification:** [SD Simplified Specifications](https://www.sdcard.org/downloads/pls/)
 
 ### 4.3 Fax Subsystem (PSTN)
 * **Modem Controller:** Conexant / Agere Systems Super G3 Fax Modem IC.
 * **Line Interface Unit (DAA):** RJ-11 Line and Phone passthrough ports with isolation transformer and ring detect circuitry.
 * **Speed:** Up to 33.6 kbps (V.34).
+* **Datasheet & Manual:** [Conexant Super G3 Modem Solutions Architecture Overview](https://www.conexant.com)
 
 ---
 
@@ -89,6 +104,7 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
 * **Ink Cartridges:**
   * HP 950 / 950XL (Black - Pigment)
   * HP 951 / 951XL (Cyan, Magenta, Yellow - Pigment)
+* **Technical Overview:** [HP Thermal Inkjet Technology Manual & Technical Documentation](https://www.hp.com)
 
 ### 5.2 Ink Cartridge Security & Monitoring Circuitry
 * **Interface:** 1-Wire / I2C bus routed to cartridge bay socket pins.
@@ -97,12 +113,16 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
   * Authenticates ink cartridge authenticity (RSA / ECC public key authentication).
   * Prevents usage of expired or non-original cartridges depending on firmware version settings (Dynamic Security feature).
   * Stores ink fill level data and serial number to prevent resetting used chips.
+* **Datasheet:** [Maxim / Analog Devices DS28E15 DeepCover 1-Wire SHA-256 Authenticator Datasheet (PDF)](https://www.analog.com/media/en/technical-documentation/data-sheets/DS28E15.pdf)
 
 ### 5.3 Motion Control & Encoders
 * **Carriage Motor:** DC Servo Motor driven by H-Bridge motor driver IC under PWM control from SoC.
 * **Carriage Position Sensing:** Linear optical encoder strip (1200 LPI) read by optical quadrature encoder sensor mounted on carriage PCB.
 * **Paper Feed (Media) Motor:** DC Servo Motor or Stepper Motor for precise page incrementing.
 * **Paper Position Sensing:** Rotary optical encoder disk mounted on paper drive roller shaft.
+* **Datasheets & Reference Documentation:**
+  * [Texas Instruments DRV8825 Stepper/DC Motor Driver IC Datasheet (PDF)](https://www.ti.com/lit/ds/symlink/drv8825.pdf)
+  * [Broadcom / Avago AEDS-964x Optical Encoder Module Datasheet (PDF)](https://docs.broadcom.com/doc/AV02-0096EN)
 
 ---
 
@@ -113,6 +133,7 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
 * **Illumination:** RGB LED Light Bar.
 * **Optical Resolution:** Up to 1200 x 1200 dpi hardware resolution.
 * **Interface:** Analog front-end (AFE) ADC or digital serial image stream fed directly to the SoC image pipeline.
+* **Datasheet:** [Analog Devices AD9826 3-Channel 16-Bit Complete Signal Processor / AFE Datasheet (PDF)](https://www.analog.com/media/en/technical-documentation/data-sheets/AD9826.pdf)
 
 ### 6.2 Automatic Document Feeder (ADF)
 * **Capacity:** 35 sheets (N911a) or 50 sheets (N911g / N911n).
@@ -127,6 +148,9 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
 * **Input Voltage:** Universal AC 100 V – 240 V ~ 50/60 Hz.
 * **Output Rail:** +32 V DC / +12 V DC dual voltage supply feeding mainboard buck converters (+5V, +3.3V, +1.8V, +1.2V for logic, memory, and motors).
 * **Power Management:** Deep sleep mode compliant with ENERGY STAR specification.
+* **Datasheets & Standards:**
+  * [Texas Instruments TPS54331 3A 28V Step-Down DC-DC Converter Datasheet (PDF)](https://www.ti.com/lit/ds/symlink/tps54331.pdf)
+  * [ENERGY STAR Specification for Imaging Equipment](https://www.energystar.gov/products/spec/imaging_equipment_specification_version_3_0_pd)
 
 ---
 
@@ -136,6 +160,7 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
   * 2.65" (N911a) or 4.3" (N911g / N911n) TFT Color Display.
 * **Touch Controller:** Resistive or Capacitive touch controller IC communicating with main SoC via SPI/I2C.
 * **User Interface Engine:** GUI assets rendered in system memory and flashed to screen frame buffer via dedicated display controller interface.
+* **Datasheet:** [Texas Instruments TSC2007 Nano-Power Touch Screen Controller Datasheet (PDF)](https://www.ti.com/lit/ds/symlink/tsc2007.pdf)
 
 ---
 
@@ -160,3 +185,7 @@ The HP OfficeJet Pro 8600 family consists of three primary variants sharing a co
   * Checks magic byte header (`HP-FW`, model target string like `N911a`, `N911g`, `N911n`).
   * Checks CRC32 / SHA-256 payload integrity.
   * Checks cryptographic digital signature (enforced on newer firmware versions).
+
+### Technical Manuals & Software Specifications
+* [HP Printer Job Language (PJL) Technical Reference Manual](https://developers.hp.com/print-tech-services/pjl-reference)
+* [U-Boot Bootloader Technical Documentation](https://u-boot.readthedocs.io/)

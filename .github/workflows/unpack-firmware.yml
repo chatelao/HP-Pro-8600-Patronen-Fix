@@ -66,33 +66,34 @@ jobs:
             fi
 
             echo "Evaluating readability and structure of unpacked artifacts and zip asset..."
-            python3 -c "import os, sys, zipfile
-from pathlib import Path
+            python3 -c "import textwrap; exec(textwrap.dedent('''
+              import os, sys, zipfile
+              from pathlib import Path
 
-output_dir = Path('decoded_output')
-files = [f for f in output_dir.rglob('*') if f.is_file()]
+              output_dir = Path('decoded_output')
+              files = [f for f in output_dir.rglob('*') if f.is_file()]
 
-if not files:
-    print('Error: No files found in decoded_output')
-    sys.exit(1)
+              if not files:
+                  print('Error: No files found in decoded_output')
+                  sys.exit(1)
 
-print(f'Total unpacked filesystem files found: {len(files)}')
+              print(f'Total unpacked filesystem files found: {len(files)}')
 
-zip_path = Path('unpacked_filesystem.zip')
-if not zip_path.exists() or zip_path.stat().st_size == 0:
-    print('Error: Zip asset is missing or empty!')
-    sys.exit(1)
+              zip_path = Path('unpacked_filesystem.zip')
+              if not zip_path.exists() or zip_path.stat().st_size == 0:
+                  print('Error: Zip asset is missing or empty!')
+                  sys.exit(1)
 
-with zipfile.ZipFile(zip_path, 'r') as zf:
-    namelist = zf.namelist()
-    print(f'Zip archive contains {len(namelist)} entries.')
-    for member in zf.infolist():
-        if member.flag_bits & 0x1:
-            print(f'Error: Zip entry {member.filename} is encrypted!')
-            sys.exit(1)
+              with zipfile.ZipFile(zip_path, 'r') as zf:
+                  namelist = zf.namelist()
+                  print(f'Zip archive contains {len(namelist)} entries.')
+                  for member in zf.infolist():
+                      if member.flag_bits & 0x1:
+                          print(f'Error: Zip entry {member.filename} is encrypted!')
+                          sys.exit(1)
 
-print('Verification complete: Unencrypted zip asset and extracted filesystem are valid.')
-"
+              print('Verification complete: Unencrypted zip asset and extracted filesystem are valid.')
+            '''))"
           else
             echo "Error: No decoded artifacts were produced."
             exit 1

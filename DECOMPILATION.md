@@ -95,14 +95,20 @@ Die Verschlüsselung nutzt AES-128-CBC über raw `zlib`-komprimierte Daten. Der 
 
 Für die Schlüsselableitung (`fw_model`) sowie die Zuordnung der Firmware-Revisionen zu den Druckermodellen dienen interne Codenamen und Modell-Präfixe aus der `fwupd`-Konfiguration (`fwupdConfig::fw_model`):
 
-| Series / Model | Internal Codename | `fwupdConfig::fw_model` | Firmware Version Prefix | Platform Tier / Notes |
+| Series / Model | Internal Codename | `fwupdConfig::fw_model` | Firmware Version Prefix / Notes | Quelle / Ref |
 |---|---|---|---|---|
-| **HP OfficeJet Pro 8600** (N911a/g/n) | Orville | `ORVILL` / `OJ8600` | CLP1CN, CKP1CN | Base AIO platform |
-| **HP OfficeJet Pro 8100** (N811a) | Wilbur | `WILBUR` / `OJ8100` | TRP1CN | SFP counterpart to the 8600 |
-| **HP OfficeJet Pro 8610 / 8620 / 8630** | Malibu (Orville Refresh) | `MALIBU` | FDP1CN | Mid-generation refresh |
-| **HP OfficeJet Pro 8730 / 8740** | Manhattan High | `MANHHI` | EDP1CN | Successor high-tier AIO |
-| **HP OfficeJet Pro 8710 / 8720** | Manhattan Low / Mid | `MANHLO` / `MANHMID` | WBP1CN | Successor low/mid-tier AIO |
-| **HP ENVY 4520 / 5540** | Palmetto / Palm | `PALMIN` | KP1CN | Consumer entry / integrated |
+| **HP OfficeJet Pro 8600** (N911a/g/n) | Orville | `ORVILL` / `OJ8600` | CLP1CN, CKP1CN (Base AIO platform) | romern.me |
+| **HP OfficeJet Pro 8100** (N811a) | Wilbur | `WILBUR` / `OJ8100` | TRP1CN (SFP counterpart to 8600) | romern.me |
+| **HP OfficeJet Pro 8610 / 8620 / 8630** | Malibu (Orville Refresh) | `MALIBU` | FDP1CN (Mid-generation refresh) | romern.me |
+| **HP OfficeJet Pro 8730 / 8740** | Manhattan High | `MANHHI` | EDP1CN (fw_model 6-char Seed für AES-Key in .ful2) | romern.me |
+| **HP OfficeJet Pro 8710 / 8720** | Manhattan Low / Mid | `MANHLO` / `MANHMID` | WBP1CN (Manhattan Low/Mid Logische Architektur-Ableitung) | (Struktur-Derivat) |
+| **HP ENVY Photo 6232 / 4520 / 5540** | Palmetto / Palm | `PALMIN` | KP1CN (fw_model 6-char Seed für AES-Key in .ful2) | romern.me |
+| **HP OfficeJet 6500** (E710n-z) | CHIANTI | `CHIANTI` | Firmware Payload Präfix (`chianti_pp_usr_hf...`) | nullsec.us |
+| **HP PSC 1410** | ERIDANI | `ERIDANI` | Hardware-Codename (ARM9 SoC), sichtbar im ThreadX UART-Boot-Banner | elektroda.com |
+| **HP OfficeJet Pro 6830 / 6960** | COPPERHEAD | `COPPERHEAD` (CopperheadXLP) | tech-class im Quellcode der HPLIP `models.dat` | HPLIP Repository |
+| **HP LaserJet 4050** | LEGOLAS | `LEGOLAS` | Interner Entwicklungs-Codename (Herr der Ringe Nomenklatur) | Reddit Ex-HP-Dev |
+| **HP OfficeJet 8028 / 8035** | OASIS | `OASIS` | Marketing- / Plattform-Name für Vertrieb & Farbgebung | B&H Photo Specs |
+| **HP-91** (Druckender Rechner) | FELIX | `FELIX` | Entwicklungs-Codename ("Topcat" Familie) | HPCC.org |
 
 ---
 

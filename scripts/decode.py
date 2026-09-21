@@ -38,6 +38,20 @@ except ImportError:
     AES = None
 
 
+def deobfuscate_fwupd_secret() -> str:
+    """
+    Deobfuscate the '@* WebFWUpdate' secret key from the fwupd binary XOR array.
+    Reconstructs the secret string using the XOR routine discovered in the fwupd_install binary.
+    """
+    array = [0x00, 0x14, 0x7f, 0x76, 0x00, 0x3d, 0x3b, 0x1c, 0x0c, 0x09, 0x2d, 0x3a, 0x3e, 0x14, 0x04, 0x00]
+    j = 0x54
+    s = bytearray()
+    for i in range(1, len(array) - 1):
+        s.append(array[i] ^ j)
+        j += 1
+    return s.decode('ascii')
+
+
 def parse_srecords(data: bytes) -> bytes:
     """Parse Motorola S-records (S0, S1, S2, S3, S7, S8, S9) into a binary memory buffer."""
     matches = re.findall(rb'S[0-9][0-9A-Fa-f]{6,}', data)
@@ -180,7 +194,7 @@ def decode_ful2(file_path: Path, output_dir: Path) -> bool:
     updated_revision = signed_info.get('updated_revision', '')
 
     fw_model = updated_revision.lower()[:6]
-    secret = '@* WebFWUpdate'
+    secret = deobfuscate_fwupd_secret()
 
     cur_data_end = xml_end
     blobs_extracted = 0

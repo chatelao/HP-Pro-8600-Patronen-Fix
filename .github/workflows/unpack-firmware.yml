@@ -45,8 +45,8 @@ jobs:
 
       - name: Run Firmware Decryption & Full Filesystem Extraction
         env:
-          TARGET_PATH: ${{ inputs.target_path || 'img' }}
-          BACKUP_PASSWORD: ${{ inputs.backup_password || '' }}
+          TARGET_PATH: ${{ github.event.inputs.target_path || 'img' }}
+          BACKUP_PASSWORD: ${{ github.event.inputs.backup_password || '' }}
         run: |
           TARGET_PATH="${TARGET_PATH:-img}"
           python3 scripts/decode.py "$TARGET_PATH" "$BACKUP_PASSWORD"

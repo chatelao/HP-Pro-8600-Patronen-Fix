@@ -211,3 +211,128 @@ python3 scripts/decode.py img/ojpro_8600_n911_a_1304A_10042013.ful.rfu
 ### Benötigte Python-Bibliotheken:
 * `pycryptodome` (`Crypto.Cipher.AES`)
 * `xmltodict`
+
+---
+
+## 8. Unpack, Decrypt, Encrypt & Pack Logic (Pure Technical Specification)
+
+Dieser Abschnitt fasst die exakte technische Spezifikation der Entschlüsselungs-, Verschlüsselungs- und Packing-Mechanismen für `.ful2`-Firmware-Dateien und `.enc` (`bksettings`)-Sicherungsdateien zusammen.
+
+### 8.1 Unpack algorithms / tools
+
+* **Tools:**
+  * `7z` (7-Zip): Extrahieren der `.ful2`-Firmware-Container aus ausführbaren Windows-Installationsdateien (`7z x OJP9020_2607A.exe`).
+  * `xmltodict` / Python XML Parser: Extrahieren und Parsen des XML-Manifests im `.ful2`-Header zwischen `<?xml` und `</manifest>`-Tags.
+  * `struct` (Python `struct.unpack_from`): Einlesen binärer Little-Endian-Header-Felder aus `.enc` (`bksettings`)-Dateien (`file_size` bei Offset `0x34`, `timer` bei `0x38`, `iv` bei `0x40:0x50`).
+  * `zlib` / `gzip`:
+    * Raw-Deflate Dekomprimierung (`zlib.decompress(data, wbits=-15)`) für `.ful2`-Blobs.
+    * Gzip-Dekomprimierung (`zlib.decompress(content, zlib.MAX_WBITS | 16)`) für den Klartext-Payload aus `.enc`-Dateien.
+  * `binwalk`: Analyse und Partitions-Scans entpackter Rohdateien (Identifikation von UBI-Images, Device Tree Blobs `.dtb`, Gzip-Archiven).
+  * `ubireader_extract_files` (`ubi_reader`): Extraktion von UBIFS-Dateisystemen aus entpackten UBI-Image-Dateien (`ubireader_extract_files img-..._vol-rootfs.ubifs`).
+  * `base64` & Protobuf-Parser / `strings`: Dekodierung von Base64-kodierten Protobuf-Blobs (`<BlobValue>`) im extrahierten Konfigurations-XML zum Auslesen von SMB-Zugangsdaten (Scan-to-Folder).
+
+* **Algorithms:**
+  * **PJL Header Stripping:** Auffinden von `@PJL ENTER LANGUAGE=FWUPDATE2` oder `@PJL ENTER LANGUAGE=FWUPDATE` und Entfernen des PJL-Preambels sowie des `\x1b%-12345X@PJL EOJ`-Footers.
+  * **Length-Prefixed Chunk Parsing (`.ful2`):** Iterieren über binäre Blobs im Anschluss an das XML-Manifest, wobei jedem verschlüsselten Blob seine Bytelänge als Hexadezimal-String gefolgt von `\n` vorangestellt ist.
+  * **Binary Offset Slicing (`bksettings` / `.enc`):**
+    * `0x00 - 0x03`: ASCII Magic Check (`"BKST"` / `0x54534b42`).
+    * `0x04 - 0x0F`: Timer / Metadaten.
+    * `0x10 - 0x2F`: Äußerer SHA256 MAC (32 Bytes).
+    * `0x30 - 0x33`: Inner Magic Check (`0x91129215`).
+    * `0x34 - 0x37`: `file_size` (32-Bit LE Integer).
+    * `0x38 - 0x3B`: `timer` (32-Bit LE Integer).
+    * `0x40 - 0x4F`: Initialisierungsvektor IV (16 Bytes).
+    * `0x50 - Ende`: AES-256-CBC Ciphertext.
+    * Post-Decryption Inner HMAC Stripping: Überspringen der ersten 32 Bytes (innerer HMAC/Digest) des entschlüsselten Datenblocks zur Isolierung der folgenden `file_size` Bytes.
+
+---
+
+### 8.2 Decrypt algorithms / tools
+
+* **Tools:**
+  * `pycryptodome` (`Crypto.Cipher.AES`) / OpenSSL EVP C-Bibliothek (`AES_cbc_encrypt`, `EVP_aes_256_cbc`).
+  * Python `hashlib` (SHA-256 Berechnung).
+  * Ghidra / IDA Pro: Reverse-Engineering-Werkzeuge zur Analyse von `/usr/local/bin/fwupd` (`fwupd_install`, `fwupdCodec::read`, `fwupdCodec::configure`) und `bksettings` (`FUN_00017af8`).
+
+* **Algorithms:**
+  * **`.ful2` Decryption Algorithm:**
+    * AES-128-CBC Entschlüsselung über den längenpräfixierten verschlüsselten Blob-Payload unter Verwendung von 16 Null-Bytes als IV (`bytes(16)`).
+    * Dekomprimierung der entschlüsselten Bytes über Raw Deflate (`zlib.decompress(compressed, wbits=-15)`).
+  * **`bksettings` (`.enc`) Decryption Algorithm:**
+    * AES-256-CBC Entschlüsselung des Ciphertexts ab Offset `0x50` unter Verwendung des bei Offset `0x40` entnommenen 16-Byte IV.
+    * Entnahme von `file_size` Bytes ab Byte-Offset 32 des entschlüsselten Puffers und anschließende Gzip-Dekomprimierung (`zlib.decompress(content, zlib.MAX_WBITS | 16)`).
+
+---
+
+### 8.3 Keys
+
+* **`.ful2` Firmware Keys:**
+  * **Hardcoded Secret String:** `@* WebFWUpdate` (In `/usr/local/bin/fwupd` mittels XOR-Schleife obfuszieren: `ARRAY[i] ^ (0x54 + i - 1)`).
+  * **Firmware Modell-String (`fw_model`):** Erste 6 Kleinbuchstaben des Tags `<updated_revision>` aus dem XML-Manifest (z. B. `MANHHIPP1N005.2607A.00` -> `manhhi`, `PALMIN...` -> `palmin`).
+  * **Uncompressed Blob Digest (`blob_digest_uncompressed`):** Base64-dekodierte Bytefolge aus dem Feld `<blob_digest_uncompressed>` des XML-Manifests für den jeweiligen Blob (`LBI_blob`, `rootfs_blob`).
+  * **Key Derivation Formula:**
+    $$\text{KeyMaterial} = \text{SHA256}(\text{"@* WebFWUpdate"} + \text{fw\_model} + \text{blob\_digest\_uncompressed})$$
+    * **AES-128 Key:** Erste 16 Bytes von `KeyMaterial` (`key_material[:16]`).
+    * **Initialization Vector (IV):** 16 Null-Bytes (`\x00` * 16).
+
+* **`bksettings` (`.enc`) Backup Keys:**
+  * **Hardcoded Secret String:** `Is_Th1s=9-Gd(S8c$et*K3y?`
+  * **User Passwort:** Vom Administrator vergebenes Backup-Passwort (UTF-8 kodiert).
+  * **Metadaten-Parameter:** `file_size` (32-Bit LE uint bei Offset `0x34`) und `timer` (32-Bit LE uint bei Offset `0x38`).
+  * **Key Derivation Formula:**
+    $$\text{AES Key} = \text{SHA256}(\text{file\_size}_{\text{LE32}} + \text{timer}_{\text{LE32}} + \text{"Is\_Th1s=9-Gd(S8c\$et*K3y?"} + \text{user\_password})$$
+    * **AES-256 Key:** 32-Byte SHA256 Hashwert.
+    * **Initialization Vector (IV):** 16-Byte Bytefolge direkt aus Datei-Offset `0x40:0x50`.
+
+---
+
+### 8.4 Encrypt algorithm / tools
+
+* **Tools:**
+  * `pycryptodome` (`Crypto.Cipher.AES`) / OpenSSL C-Bibliothek (`EVP_EncryptInit_ex`, `EVP_EncryptUpdate`, `EVP_EncryptFinal_ex`).
+  * Python `zlib` / `gzip` Komprimierungsbibliotheken (`zlib.compress`).
+  * `hashlib` / OpenSSL `EVP_sha256` zur SHA-256 Hash-Generierung.
+
+* **Algorithms:**
+  * **`.ful2` Encryption Algorithm:**
+    1. Komprimierung des unverschlüsselten Binär-Payloads (z. B. RootFS oder LBI-Image) via Raw Deflate (`wbits=-15`).
+    2. Berechnung des SHA256-Digests der unkomprimierten Daten (`blob_digest_uncompressed`).
+    3. Ableitung des Schlüssels: `SHA256("@* WebFWUpdate" + fw_model + blob_digest_uncompressed)`.
+    4. AES-128-CBC Verschlüsselung des komprimierten Datenstroms mit den ersten 16 Bytes des abgeleiteten Schlüssels und 16 Null-Bytes als IV.
+  * **`bksettings` (`.enc`) Encryption Algorithm:**
+    1. Komprimierung des XML-Konfigurationsdokuments im Gzip-Format (`wbits = MAX_WBITS | 16`).
+    2. Berechnung des 32-Byte SHA256 Inner HMAC/Digests über die komprimierten Daten und Voranstellen vor den komprimierten Puffer.
+    3. Ableitung des 32-Byte AES-256 Schlüssels: `SHA256(file_size_LE32 + timer_LE32 + "Is_Th1s=9-Gd(S8c$et*K3y?" + user_password)`.
+    4. AES-256-CBC Verschlüsselung des zusammengefügten Puffers (Inner HMAC + komprimiertes XML) mit einem zufällig generierten 16-Byte IV.
+    5. Berechnung des äußeren 32-Byte SHA256 MACs über den Datei-Header.
+
+---
+
+### 8.5 Pack algorithm / tools
+
+* **Tools:**
+  * Python `struct` (`struct.pack("<I", ...)`), `bytearray` und Datei-I/O-Operationen.
+  * XML-Generatoren / Formatierer zur Erstellung des Manifests gemäß `webfwupdate.xsd`.
+  * PJL-Formatierungswerkzeuge zum Anhängen/Voranstellen von Drucker-Steuerbefehlen.
+
+* **Algorithms:**
+  * **`.ful2` Container Packing Algorithm:**
+    1. Erstellung des XML-Manifests inklusive `signedInfo`, `updated_revision`, Signaturblöcken und Blob-Metadaten (`size_compressed`, `size_uncompressed`, `blob_digest_compressed`, `blob_digest_uncompressed`).
+    2. Formatierung jedes verschlüsselten Blobs durch Voranstellen seiner Bytelänge als Hexadezimal-String gefolgt von `\n`.
+    3. Konkatenierung aller Komponenten:
+       * PJL-Header: `\x1b%-12345X@PJL COMMENT MODEL=...` ... `@PJL ENTER LANGUAGE=FWUPDATE2\n`
+       * Hexadezimale Länge des XML-Manifests + `\n`
+       * XML-Manifest-Text + `\n`
+       * Hexadezimale Länge von Blob 1 + `\n` + Verschlüsselter Blob 1
+       * Hexadezimale Länge von Blob 2 + `\n` + Verschlüsselter Blob 2
+       * PJL-Footer: `\x1b%-12345X@PJL EOJ`
+  * **`bksettings` (`.enc`) Container Packing Algorithm:**
+    1. Erstellung des 0x50-Byte Binärheaders:
+       * `0x00 - 0x03`: ASCII String `"BKST"` (`0x54534b42`).
+       * `0x04 - 0x0F`: Timer / Metadatenfelder.
+       * `0x10 - 0x2F`: Äußerer 32-Byte SHA256 MAC.
+       * `0x30 - 0x33`: Inner Magic Bytes `0x91129215` (32-Bit LE Integer).
+       * `0x34 - 0x37`: Unkomprimierte Dateigröße `file_size` als 32-Bit Little-Endian uint (`struct.pack("<I", file_size)`).
+       * `0x38 - 0x3B`: Zeitstempel-Wert `timer` als 32-Bit Little-Endian uint (`struct.pack("<I", timer)`).
+       * `0x40 - 0x4F`: 16-Byte zufälliger Initialisierungsvektor (IV).
+    2. Anfügen des AES-256-CBC Ciphertexts unmittelbar nach Offset `0x50`.

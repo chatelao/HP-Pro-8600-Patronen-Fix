@@ -233,7 +233,15 @@ python3 scripts/decode.py img/ojpro_8600_n911_a_1304A_10042013.ful.rfu
 
 ---
 
-## 8. Unpack, Decrypt, Encrypt & Pack Logic (Pure Technical Specification)
+## 8. Open-Source-Bibliotheken & Software-Komponenten
+
+Für eine detaillierte Übersicht aller bekannten Open-Source-Bibliotheken, Betriebssystem-Komponenten, Krypto-Pakete, Grafik-Engines und Werkzeuge, die im HP OfficeJet Pro 8600 sowie in der Analyse-Toolchain zum Einsatz kommen, siehe das Referenzdokument:
+
+👉 **[OPEN_SOURCE_LIBRARIES.md](OPEN_SOURCE_LIBRARIES.md)**
+
+---
+
+## 9. Unpack, Decrypt, Encrypt & Pack Logic (Pure Technical Specification)
 
 Dieser Abschnitt fasst die exakte technische Spezifikation der Entschlüsselungs-, Verschlüsselungs- und Packing-Mechanismen für `.ful2`-Firmware-Dateien und `.enc` (`bksettings`)-Sicherungsdateien zusammen.
 

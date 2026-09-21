@@ -23,6 +23,7 @@ from scripts.decode import (
     decode_bksettings,
     decode_pjl_rfu,
     create_zip_asset,
+    resolve_target_paths,
 )
 from Crypto.Cipher import AES
 
@@ -184,3 +185,26 @@ def test_create_zip_asset(tmp_path):
     created = create_zip_asset(out_dir, zip_file)
     assert created.exists()
     assert zipfile.is_zipfile(created)
+
+
+def test_resolve_target_paths():
+    # Test resolving existing img dir and rfu files
+    res_img = resolve_target_paths("img")
+    assert len(res_img) > 0
+    assert any(p.name.endswith(".rfu") for p in res_img)
+
+    # Test resolving leading slash /img
+    res_slash_img = resolve_target_paths("/img")
+    assert res_slash_img == res_img
+
+    # Test resolving glob img/*.rfu
+    res_glob = resolve_target_paths("img/*.rfu")
+    assert len(res_glob) > 0
+    assert all(p.name.endswith(".rfu") for p in res_glob)
+
+    # Test resolving leading slash glob /img/*.rfu
+    res_slash_glob = resolve_target_paths("/img/*.rfu")
+    assert res_slash_glob == res_glob
+
+    # Test non-existent pattern
+    assert resolve_target_paths("nonexistent_dir/*.xyz") == []

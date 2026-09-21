@@ -55,42 +55,40 @@ jobs:
             ls -lh decoded_output/
 
             echo "Evaluating readability and structure of unpacked artifacts..."
-            python3 -c "
-            import os, sys
-            from pathlib import Path
+            python3 -c "import os, sys
+from pathlib import Path
 
-            output_dir = Path('decoded_output')
-            files = [f for f in output_dir.glob('*') if f.is_file()]
+output_dir = Path('decoded_output')
+files = [f for f in output_dir.glob('*') if f.is_file()]
 
-            if not files:
-                print('Error: No files found in decoded_output')
-                sys.exit(1)
+if not files:
+    print('Error: No files found in decoded_output')
+    sys.exit(1)
 
-            for file in files:
-                data = file.read_bytes()
-                print(f'=== File: {file.name} ({len(data)} bytes) ===')
+for file in files:
+    data = file.read_bytes()
+    print(f'=== File: {file.name} ({len(data)} bytes) ===')
+    if len(data) == 0:
+        print(f'Error: Extracted file {file.name} is 0 bytes!')
+        sys.exit(1)
 
-                if len(data) == 0:
-                    print(f'Error: Extracted file {file.name} is 0 bytes!')
-                    sys.exit(1)
+    has_xml = b'<?xml' in data or b'</manifest>' in data
+    has_srec = b'S0' in data or b'S3' in data
+    has_pcl = b'\x1bE' in data or b'@PJL' in data
 
-                has_xml = b'<?xml' in data or b'</manifest>' in data
-                has_srec = b'S0' in data or b'S3' in data
-                has_pcl = b'\x1bE' in data or b'@PJL' in data
+    printable = sum(1 for b in data if 32 <= b <= 126 or b in (9, 10, 13))
+    ratio = (printable / len(data)) * 100
 
-                printable = sum(1 for b in data if 32 <= b <= 126 or b in (9,10,13))
-                ratio = (printable / len(data)) * 100
+    print(f'  Printable ASCII ratio: {ratio:.2f}%')
+    print(f'  Contains XML: {has_xml}')
+    print(f'  Contains Motorola S-Records: {has_srec}')
+    print(f'  Contains residual PCL/PJL markers: {has_pcl}')
 
-                print(f'  Printable ASCII ratio: {ratio:.2f}%')
-                print(f'  Contains XML: {has_xml}')
-                print(f'  Contains Motorola S-Records: {has_srec}')
-                print(f'  Contains residual PCL/PJL markers: {has_pcl}')
-
-                if has_pcl:
-                    print('  [Warning] Artifact contains residual PCL/PJL escape sequences.')
-                if has_srec:
-                    print('  [Note] Artifact is Motorola S-Record encapsulated.')
-            "
+    if has_pcl:
+        print('  [Warning] Artifact contains residual PCL/PJL escape sequences.')
+    if has_srec:
+        print('  [Note] Artifact is Motorola S-Record encapsulated.')
+"
           else
             echo "Error: No decoded artifacts were produced."
             exit 1

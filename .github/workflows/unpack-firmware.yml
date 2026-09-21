@@ -1,0 +1,62 @@
+name: Unpack RFU Firmware Packages
+
+on:
+  push:
+    paths:
+      - 'img/*.rfu'
+      - 'img/**/*.rfu'
+      - 'scripts/decode.py'
+      - '.github/workflows/unpack-firmware.yml'
+  pull_request:
+    paths:
+      - 'img/*.rfu'
+      - 'img/**/*.rfu'
+      - 'scripts/decode.py'
+      - '.github/workflows/unpack-firmware.yml'
+  workflow_dispatch:
+    inputs:
+      target_path:
+        description: 'Path to firmware file or directory containing .rfu files'
+        required: false
+        default: 'img'
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pycryptodome xmltodict
+
+      - name: Run Firmware Unpacking Logic
+        run: |
+          TARGET_PATH="${{ github.event.inputs.target_path }}"
+          if [ -z "$TARGET_PATH" ]; then
+            TARGET_PATH="img"
+          fi
+          python3 scripts/decode.py "$TARGET_PATH"
+
+      - name: Check Extracted Artifacts
+        run: |
+          if [ -d "decoded_output" ] && [ "$(ls -A decoded_output)" ]; then
+            echo "Successfully unpacked firmware artifacts:"
+            ls -lh decoded_output/
+          else
+            echo "Error: No decoded artifacts were produced."
+            exit 1
+          fi
+
+      - name: Upload Unpacked Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unpacked-firmware-artifacts
+          path: decoded_output/

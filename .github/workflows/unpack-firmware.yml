@@ -17,14 +17,18 @@ on:
         description: 'Path to firmware file, backup, or directory'
         required: false
         default: 'img'
+        type: string
       backup_password:
         description: 'Password for .enc bksettings backup decryption (optional)'
         required: false
         default: ''
+        type: string
 
 jobs:
   unpack:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -40,12 +44,11 @@ jobs:
           pip install pycryptodome xmltodict
 
       - name: Run Firmware Decryption & Full Filesystem Extraction
+        env:
+          TARGET_PATH: ${{ inputs.target_path || 'img' }}
+          BACKUP_PASSWORD: ${{ inputs.backup_password || '' }}
         run: |
-          TARGET_PATH="${{ github.event.inputs.target_path }}"
-          BACKUP_PASSWORD="${{ github.event.inputs.backup_password }}"
-          if [ -z "$TARGET_PATH" ]; then
-            TARGET_PATH="img"
-          fi
+          TARGET_PATH="${TARGET_PATH:-img}"
           python3 scripts/decode.py "$TARGET_PATH" "$BACKUP_PASSWORD"
 
       - name: Verify Extracted Filesystem & ZIP Asset
@@ -102,3 +105,4 @@ print('Verification complete: Unencrypted zip asset and extracted filesystem are
           path: |
             unpacked_filesystem.zip
             decoded_output/
+          if-no-files-found: error
